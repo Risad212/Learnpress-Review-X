@@ -1,6 +1,7 @@
 <?php
 
-namespace LearnPress\CourseRevie\CourseReviewWidget;
+
+namespace LearnPress\CourseReview;
 
 use LearnPress\Helpers\Singleton;
 use LearnPress\Models\CourseModel;
