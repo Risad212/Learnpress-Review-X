@@ -1,21 +1,24 @@
 <?php
 
-namespace LearnPress\CourseReview\Hooks;
+namespace LearnPress\CourseReview\TemplateHooks;
 
 use LearnPress\Models\CourseModel;
 use LearnPress\Models\UserModel;
+use LearnPress\Helpers\Singleton;
 use LearnPress\Helpers\Template;
 use LearnPress\Models\UserItems\UserCourseModel;
+use Course_Review_Preload;
 
-class TemplateHook
+class TemplateHooks
 {
-	public function __construct()
+	use Singleton;
+	public function init()
 	{
 		require_once COURSE_REVIEW_PATH . '/inc/plugin.php';
 
 		add_filter(
 			'learn-press/single-course/modern/section-instructor',
-			[$this, 'inject_review_section'],
+			[$this, 'add_review_section'],
 			8,
 			3
 		);
@@ -29,14 +32,15 @@ class TemplateHook
 	}
 
 	/* ================= Inject Section ================= */
-	public function inject_review_section(array $section, CourseModel $courseModel, $userModel)
+	public function add_review_section(array $section, CourseModel $courseModel, $userModel)
 	{
-		if (! Course_Review_Addon::is_enable($courseModel)) {
+
+	   if ( ! Course_Review_Preload::$addon->is_enable( $courseModel ) ) {
 			return $section;
 		}
 
 		ob_start();
-		do_action('learn-press/course-review/rating-reviews', $courseModel, $userModel);
+		  do_action('learn-press/course-review/rating-reviews', $courseModel, $userModel);
 		$html = ob_get_clean();
 
 		return apply_filters(
@@ -149,24 +153,84 @@ class TemplateHook
 
 		$html = '<div class="course-rate">';
 
+		/* ================= SUMMARY ================= */
+
 		$html .= '<div class="course-rate__summary">';
+
+		// Average rating number.
 		$html .= '<div class="course-rate__summary-value">' . $averageStars . '</div>';
 
-		$html .= '<div class="course-rate__summary-stars"><div class="review-stars-rated">';
+		// Stars.
+		$html .= '<div class="course-rate__summary-stars">';
+		$html .= '<div class="review-stars-rated">';
+
 		for ($i = 1; $i <= 5; $i++) {
+
 			$html .= ($i <= floor($averageStars))
 				? '<div class="review-star">★</div>'
 				: '<div class="review-star">☆</div>';
 		}
-		$html .= '</div></div>';
 
-		$html .= '<div class="course-rate__summary-text"><span>' . $total_reviews . '</span> ' . esc_html__('rating', 'course-review') . '</div>';
+		$html .= '</div>';
+		$html .= '</div>';
+
+		// Total reviews text.
+		$html .= '<div class="course-rate__summary-text">';
+		$html .= '<span>' . $total_reviews . '</span> ';
+		$html .= esc_html__('rating', 'course-review');
+		$html .= '</div>';
+
+		$html .= '</div>';
+
+
+		/* ================= DETAILS ================= */
+
+		$html .= '<div class="course-rate__details">';
+
+		$ratings = [
+			5 => $courseRatings->five,
+			4 => $courseRatings->four,
+			3 => $courseRatings->three,
+			2 => $courseRatings->two,
+			1 => $courseRatings->one,
+		];
+
+		foreach ($ratings as $star => $count) {
+
+			// Prevent divide by zero.
+			$percent = $total_reviews
+				? ($count / $total_reviews) * 100
+				: 0;
+
+			$html .= '<div class="course-rate__details-row">';
+
+			// Star number.
+			$html .= '<span class="course-rate__details-row-star">' . $star . '</span>';
+
+			// Star icon.
+			$html .= '<span class="course-rate__details-row-icon">★</span>';
+
+			// Progress bar.
+			$html .= '<div class="course-rate__details-row-value">';
+
+			$html .= '<div class="rating-gray"></div>';
+
+			$html .= '<div class="rating" style="width:' . $percent . '%;"></div>';
+
+			$html .= '</div>';
+
+			// Rating count.
+            $html .= '<span class="rating-count">' . ($count ? $count : 0) . '</span>';
+
+			$html .= '</div>';
+		}
+
 		$html .= '</div>';
 
 		$html .= '</div>';
 
 		return $html;
-	}
+		}
 
 	/* ================= Average Calculation ================= */
 	public function average_calculation_rating($courseRatings)
@@ -267,6 +331,6 @@ class TemplateHook
 			</div>
 		</section>
 
-<?php return ob_get_clean();
+    <?php return ob_get_clean();
 	}
 }
